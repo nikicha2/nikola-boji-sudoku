@@ -1,5 +1,5 @@
 class Button():
-    def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+    def __init__(self, image, pos, text_input, font, base_color, hovering_color,highlight_color='red'):
         self.image = image
         self.x_pos = pos[0]
         self.y_pos = pos[1]
@@ -12,6 +12,7 @@ class Button():
             self.image = self.text
         self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
         self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
+        self.highlight_color=highlight_color
 
     def update(self, screen):
         if self.image is not None:
@@ -28,3 +29,7 @@ class Button():
             self.text = self.font.render(self.text_input, True, self.hovering_color)
         else:
             self.text = self.font.render(self.text_input, True, self.base_color)
+    def highlight(self):
+        self.text = self.font.render(self.text_input, True, self.highlight_color)
+    def unhighlight(self):
+        self.text = self.font.render(self.text_input, True, self.base_color)

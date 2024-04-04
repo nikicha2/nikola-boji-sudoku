@@ -5,16 +5,94 @@ from button import Button
 pygame.init()
 SCREEN = pygame.display.set_mode((1280, 720))
 BG = (255, 255, 255) 
-TEXT_COLOR = (0,0,0)
+TEXT_COLOR = '#000000'
 SCREEN.fill(BG)
 pygame.display.flip()
-counter = 0
+counter=0
+
 def sudoku(difficulty):
-    board=[[0 for _ in range(9)] for _ in range(9)]
+    pygame.display.set_caption(difficulty + ' Sudoku')
+    board = final_board(difficulty)
+    SCREEN.fill(BG)
+    pygame.display.flip()
+    grid_width = 450
+    grid_height = 450
+    pygame.draw.rect(SCREEN, TEXT_COLOR, pygame.Rect(410, 100, grid_width, grid_height), 8)
+    for i in range(1, 9):
+        if i % 3 == 0:
+            pygame.draw.line(SCREEN, TEXT_COLOR, pygame.Vector2((i * 50 + 410), 100), pygame.Vector2((i * 50 + 410), 545), 7)
+            pygame.draw.line(SCREEN, TEXT_COLOR, pygame.Vector2((410, (i * 50 + 100))), pygame.Vector2(855, (i * 50 + 100)), 7)
+        else:
+            pygame.draw.line(SCREEN, TEXT_COLOR, pygame.Vector2((i * 50 + 410), 100), pygame.Vector2((i * 50 + 410), 545), 3)
+            pygame.draw.line(SCREEN, TEXT_COLOR, pygame.Vector2((410, (i * 50 + 100))), pygame.Vector2(855, (i * 50 + 100)), 3)
+    pygame.display.flip()
+    BOARD_NUMS=[[0 for _ in range(9)] for _ in range(9)]
+    for i in range(9):
+        for j in range(9):
+            if board[i][j] != 0:
+                button =Button(image=None,pos=(410 + i * 50 + 25,100 + j * 50 + 25), text_input=str(board[i][j]),font=pygame.font.Font(None, 35),base_color=TEXT_COLOR,hovering_color='red')
+                BOARD_NUMS[i][j]=button
+                BOARD_NUMS[i][j].update(SCREEN)
+            else:
+                button =Button(image=None,pos=(410 + i * 50 + 25,100 + j * 50 + 25), text_input=str(board[i][j]),font=pygame.font.Font(None, 35),base_color=BG,hovering_color='red')
+                BOARD_NUMS[i][j]=button
+                BOARD_NUMS[i][j].update(SCREEN)
+    pygame.display.flip()
+    NUM_BUTTONS = []
+    for i in range(9):
+        button = Button(image=None, pos=(410 + i * 50 + 25, 650), text_input=str(i + 1), font=pygame.font.Font(None, 30), base_color=TEXT_COLOR,hovering_color='red')
+        button.update(SCREEN)
+        NUM_BUTTONS.append(button)
+    pygame.display.flip()
+    input_num(BOARD_NUMS,NUM_BUTTONS)
+    
+
+def input_num(board, num_buttons):
+    while True: 
+        select_num_pos = pygame.mouse.get_pos()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for i in range(9):
+                    if num_buttons[i].checkforinput(select_num_pos):
+                        for button in num_buttons:
+                            button.unhighlight()
+                            button.update(SCREEN)
+                        for row in range(9):
+                            for col in range(9):
+                                if board[row][col].text_input != '':
+                                    board[row][col].unhighlight()
+                                    board[row][col].update(SCREEN)
+                        
+                        num_buttons[i].highlight()
+                        num_buttons[i].update(SCREEN)
+                        
+                        clicked_num = num_buttons[i].text_input
+                        for row in range(9):
+                            for col in range(9):
+                                if board[row][col].text_input == clicked_num:
+                                    board[row][col].highlight()
+                                    board[row][col].update(SCREEN)
+                    else:
+                        for row in range(9):
+                            for col in range(9):
+                                if board[row][col].checkforinput(select_num_pos):
+                                    if board[row][col].text_input=='0':
+                                        board[row][col] = Button(image= None, pos=(410 + row * 50 + 25, 100 + col * 50 + 25), text_input=str(clicked_num), font=pygame.font.Font(None, 35), base_color=TEXT_COLOR, hovering_color='red')
+                                        board[row][col].highlight()
+                                        board[row][col].update(SCREEN)
+                                        pygame.display.flip()
+        pygame.display.update()
+
+
+def final_board(difficulty):
+    board = [[0 for _ in range(9)] for _ in range(9)]
     fill_board(board)
-    attempts = 2
+    attempts = 6
     if difficulty == 'Easy':
-        attempts +=1
+        attempts += 1
     elif difficulty == 'Medium':
         attempts += 2
     elif difficulty == 'Hard':
@@ -25,18 +103,19 @@ def sudoku(difficulty):
         while board[row][col] == 0:
             row = random.randint(0, 8)
             col = random.randint(0, 8)
-
         backup = board[row][col]
         board[row][col] = 0
-
-        copy_grid = board[:]
-
+        copy_grid =board[:]
+        global counter
+        counter = 0
         solveGrid(copy_grid)
         if counter != 1:
             board[row][col] = backup
             attempts -= 1
+    return board
 def solveGrid(grid):
     global counter
+    counter=0
     for i in range(0, 81):
         row = i // 9
         col = i % 9
@@ -60,6 +139,7 @@ def solveGrid(grid):
                                     return True
             break
     grid[row][col] = 0
+    
 
 def checkGrid(grid):
     for row in range(0, 9):
@@ -123,11 +203,11 @@ def play():
                 if PLAY_BACK.checkforinput(PLAY_MOUSE_POS):
                     main_menu()
                 if EASY_BUTTON.checkforinput(PLAY_MOUSE_POS):
-                    sudoku('easy')
-                if EASY_BUTTON.checkforinput(PLAY_MOUSE_POS):
-                    sudoku('medium')
-                if EASY_BUTTON.checkforinput(PLAY_MOUSE_POS):
-                    sudoku('hard')
+                    sudoku('Easy')
+                if MEDIUM_BUTTON.checkforinput(PLAY_MOUSE_POS):
+                    sudoku('Medium')
+                if HARD_BUTTON.checkforinput(PLAY_MOUSE_POS):
+                    sudoku('Hard')
         pygame.display.update()
 
 def options():
