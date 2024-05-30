@@ -4,9 +4,13 @@ from button import Button
 
 pygame.init()
 SCREEN = pygame.display.set_mode((1280, 720))
-bgcolor=(255,255,255)
-tupletextcolor=(0,0,0)
-textcolor='#000000'
+if os.path.exists("color_scheme.json"):
+    with open("color_scheme.json","r") as file:
+        colors = json.load(file)
+        bgcolor=colors['bgc']
+        tupletextcolor=colors['ttc']
+        textcolor=colors["tc"]
+
 SCREEN.fill(bgcolor)
 pygame.display.flip()
 counter=0
@@ -205,7 +209,6 @@ class Grid:
                 self.cubes[row][col].draw_change(self.win, True)
                 self.update_model()
                 pygame.display.update()
-                pygame.time.delay(50)
 
                 if self.solve_gui():
                     return True
@@ -215,7 +218,6 @@ class Grid:
                 self.update_model()
                 self.cubes[row][col].draw_change(self.win, False)
                 pygame.display.update()
-                pygame.time.delay(50)
 
         return False
     def removeAdjNotes(self,key,i,j):
@@ -418,7 +420,7 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
         elif difficulty == 'Medium':
             K=40
         elif difficulty == 'Hard':
-            K=48
+            K=47
         while True:
             boardObj = Sudoku(9,K)
             boardObj.fillValues()
@@ -435,16 +437,22 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                with open("last_board.json", "w") as file:
-                    dumpDict={}
-                    dumpDict["values"]=board.model
-                    notesList=[]
-                    for x in range(9):
-                        for y in range(9):
-                            notesList.append(board.cubes[x][y].notes)
-                    dumpDict['notes']=notesList
-                    dumpDict['difficulty']=difficulty
+                dumpDict={}
+                dumpDict["values"]=board.model
+                notesList=[]
+                for x in range(9):
+                    for y in range(9):
+                        notesList.append(board.cubes[x][y].notes)
+                dumpDict['notes']=notesList
+                dumpDict['difficulty']=difficulty
+                colors={}
+                colors["bgc"]=bgcolor
+                colors["tc"]=textcolor
+                colors["ttc"]=tupletextcolor
+                with open("last_board.json", "w") as file:   
                     json.dump(dumpDict,file)
+                with open("color_scheme.json","w") as cfile:
+                    json.dump(colors,cfile)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
@@ -544,6 +552,15 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
                 PLAY_BACK.update(SCREEN)
                 for ev in pygame.event.get():
                     if ev.type == pygame.QUIT:
+                        dumpDict={}
+                        colors={}
+                        colors["bgc"]=bgcolor
+                        colors["tc"]=textcolor
+                        colors["ttc"]=tupletextcolor
+                        with open("last_board.json","w") as file:
+                            json.dump(dumpDict,file)
+                        with open("color_scheme.json","w") as cfile:
+                            json.dump(colors,cfile)
                         pygame.quit()
                         sys.exit()
                     if ev.type == pygame.MOUSEBUTTONDOWN:
@@ -559,9 +576,9 @@ def play():
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
         DIF_TEXT = pygame.font.SysFont("comicsans", 90).render("SELECT DIFICULTY", True, textcolor)
         DIF_RECT = DIF_TEXT.get_rect(center=(640, 100))
-        EASY_BUTTON = Button(image=None, pos=(640, 250), text_input="EASY", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
-        MEDIUM_BUTTON = Button(image=None, pos=(640, 400), text_input="MEDIUM", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
-        HARD_BUTTON = Button(image=None, pos=(640, 550), text_input="HARD", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
+        EASY_BUTTON = Button(image=None, pos=(640, 250), text_input="EASY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        MEDIUM_BUTTON = Button(image=None, pos=(640, 400), text_input="MEDIUM", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        HARD_BUTTON = Button(image=None, pos=(640, 550), text_input="HARD", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
         SCREEN.blit(DIF_TEXT, DIF_RECT)
         for button in [EASY_BUTTON, MEDIUM_BUTTON, HARD_BUTTON]:
             button.changecolor(PLAY_MOUSE_POS)
@@ -571,6 +588,15 @@ def play():
         PLAY_BACK.update(SCREEN)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                dumpDict={}
+                colors={}
+                colors["bgc"]=bgcolor
+                colors["tc"]=textcolor
+                colors["ttc"]=tupletextcolor
+                with open("last_board.json","w") as file:
+                    json.dump(dumpDict,file)
+                with open("color_scheme.json","w") as cfile:
+                    json.dump(colors,cfile)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -625,13 +651,22 @@ def options():
             option.changecolor(OPTIONS_MOUSE_POS)
             option.update(SCREEN)
 
-        OPTIONS_BACK = Button(image=None, pos=(640, 540), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color="Green")
+        OPTIONS_BACK = Button(image=None, pos=(640, 540), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color="Green")
 
         OPTIONS_BACK.changecolor(OPTIONS_MOUSE_POS)
         OPTIONS_BACK.update(SCREEN)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                dumpDict={}
+                colors={}
+                colors["bgc"]=bgcolor
+                colors["tc"]=textcolor
+                colors["ttc"]=tupletextcolor
+                with open("last_board.json","w") as file:
+                    json.dump(dumpDict,file)
+                with open("color_scheme.json","w") as cfile:
+                    json.dump(colors,cfile)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -656,19 +691,22 @@ def options():
 
         pygame.display.update()
 def main_menu():
+    global textcolor
+    global bgcolor
+    global tupletextcolor
     pygame.display.set_caption("Menu")
     SCREEN.fill(bgcolor)
     pygame.display.flip()
     continue_button = None
-    if os.path.exists("last_board.json") and os.path.getsize("last_board.json") > 0:
-        continue_button = Button(image=None, pos=(640, 150), text_input="CONTINUE", font=pygame.font.SysFont("comicsans", 65), base_color='#bed4eb', hovering_color='#d8e5f2')
+    if os.path.exists("last_board.json") and os.path.getsize("last_board.json") > 2:
+        continue_button = Button(image=None, pos=(640, 150), text_input="CONTINUE", font=pygame.font.SysFont("comicsans", 65), base_color='#bed4eb', hovering_color=textcolor)
     while True:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
         MENU_TEXT = pygame.font.SysFont("comicsans", 100).render("SUDOKU", True,textcolor)
         MENU_RECT = MENU_TEXT.get_rect(center=(640, 50))
-        PLAY_BUTTON = Button(image=None, pos=(640, 250), text_input="PLAY", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
-        OPTIONS_BUTTON = Button(image=None, pos=(640, 400), text_input="OPTIONS", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
-        QUIT_BUTTON = Button(image=None, pos=(640, 550), text_input="QUIT", font=pygame.font.SysFont("comicsans", 75), base_color='#bed4eb', hovering_color='#d8e5f2')
+        PLAY_BUTTON = Button(image=None, pos=(640, 250), text_input="PLAY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        OPTIONS_BUTTON = Button(image=None, pos=(640, 400), text_input="OPTIONS", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        QUIT_BUTTON = Button(image=None, pos=(640, 550), text_input="QUIT", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
         SCREEN.blit(MENU_TEXT, MENU_RECT)
         if continue_button:
             continue_button.changecolor(MENU_MOUSE_POS)
@@ -678,6 +716,15 @@ def main_menu():
             button.update(SCREEN)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                dumpDict={}
+                colors={}
+                colors["bgc"]=bgcolor
+                colors["tc"]=textcolor
+                colors["ttc"]=tupletextcolor
+                with open("last_board.json","w") as file:
+                    json.dump(dumpDict,file)
+                with open("color_scheme.json","w") as cfile:
+                    json.dump(colors,cfile)
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -693,6 +740,15 @@ def main_menu():
                 if OPTIONS_BUTTON.checkforinput(MENU_MOUSE_POS):
                     options()
                 if QUIT_BUTTON.checkforinput(MENU_MOUSE_POS):
+                    dumpDict={}
+                    colors={}
+                    colors["bgc"]=bgcolor
+                    colors["tc"]=textcolor
+                    colors["ttc"]=tupletextcolor
+                    with open("last_board.json","w") as file:
+                        json.dump(dumpDict,file)
+                    with open("color_scheme.json","w") as cfile:
+                        json.dump(colors,cfile)
                     pygame.quit()
                     sys.exit()
         pygame.display.update()
