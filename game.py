@@ -1,99 +1,23 @@
 import pygame,sys,os
 import random,math,time,json
 from button import Button
-
+from sudoku import *
+import requests
 pygame.init()
 SCREEN = pygame.display.set_mode((1280, 720))
 if os.path.exists("color_scheme.json"):
     with open("color_scheme.json","r") as file:
         colors = json.load(file)
-        bgcolor=colors['bgc']
-        tupletextcolor=colors['ttc']
-        textcolor=colors["tc"]
+        bgcolor=colors['bg_color']
+        bordercolor=colors['border_color']
+        tupletextcolor=colors['tuple_text_color']
+        textcolor=colors["text_color"]
+        highlightcolor=colors["highlight_color"]
+        hovering_color=colors["hover_color"]
 
 SCREEN.fill(bgcolor)
 pygame.display.flip()
 counter=0
-class Sudoku:
-    def __init__(self, N, K):
-        self.N = N
-        self.K = K
-        SRNd = math.sqrt(N)
-        self.SRN = int(SRNd)
-        self.mat = [[0 for _ in range(N)] for _ in range(N)]
-     
-    def fillValues(self):
-        self.fillDiagonal()
-        self.fillRemaining(0, self.SRN)
-        self.removeKDigits()
-     
-    def fillDiagonal(self):
-        for i in range(0, self.N, self.SRN):
-            self.fillBox(i, i)
-     
-    def unUsedInBox(self, rowStart, colStart, num):
-        for i in range(self.SRN):
-            for j in range(self.SRN):
-                if self.mat[rowStart + i][colStart + j] == num:
-                    return False
-        return True
-     
-    def fillBox(self, row, col):
-        num = 0
-        for i in range(self.SRN):
-            for j in range(self.SRN):
-                while True:
-                    num = self.randomGenerator(self.N)
-                    if self.unUsedInBox(row, col, num):
-                        break
-                self.mat[row + i][col + j] = num
-     
-    def randomGenerator(self, num):
-        return math.floor(random.random() * num + 1)
-     
-    def checkIfSafe(self, i, j, num):
-        return (self.unUsedInRow(i, num) and self.unUsedInCol(j, num) and self.unUsedInBox(i - i % self.SRN, j - j % self.SRN, num))
-     
-    def unUsedInRow(self, i, num):
-        for j in range(self.N):
-            if self.mat[i][j] == num:
-                return False
-        return True
-     
-    def unUsedInCol(self, j, num):
-        for i in range(self.N):
-            if self.mat[i][j] == num:
-                return False
-        return True
-    
-    def fillRemaining(self, i, j):
-        if i == self.N - 1 and j == self.N:
-            return True
-        if j == self.N:
-            i += 1
-            j = 0
-        if self.mat[i][j] != 0:
-            return self.fillRemaining(i, j + 1)
-        
-        for num in range(1, self.N + 1):
-            if self.checkIfSafe(i, j, num):
-                self.mat[i][j] = num
-                if self.fillRemaining(i, j + 1):
-                    return True
-                self.mat[i][j] = 0
-        return False
- 
-    def removeKDigits(self):
-        count = self.K
- 
-        while (count != 0):
-            i = self.randomGenerator(self.N) - 1
-            j = self.randomGenerator(self.N) - 1
-            if (self.mat[i][j] != 0):
-                count -= 1
-                self.mat[i][j] = 0
-     
-        return
 class Grid:
     def __init__(self, rows, cols, width, height, win,board):
         self.rows = rows
@@ -133,8 +57,8 @@ class Grid:
                 thick = 4
             else:
                 thick = 1
-            pygame.draw.line(self.win, (0,0,0), (offset, i*gap), (self.width+offset, i*gap), thick)
-            pygame.draw.line(self.win, (0,0,0), (i * gap+offset, 0), (i * gap+offset, self.height), thick)
+            pygame.draw.line(self.win, bordercolor, (offset, i*gap), (self.width+offset, i*gap), thick)
+            pygame.draw.line(self.win, bordercolor, (i * gap+offset, 0), (i * gap+offset, self.height), thick)
 
         # Draw Cubes
         for i in range(self.rows):
@@ -275,7 +199,7 @@ class Cube:
                 note_x = x + (note - 1) % 3 * gap / 3
                 note_y = y + (note - 1) // 3 * gap / 3
                 if note ==key:
-                    text = small_fnt.render(str(note), 1, (255, 0, 0))
+                    text = small_fnt.render(str(note), 1, highlightcolor)
                 else:
                     text = small_fnt.render(str(note), 1, (128, 128, 128))
                 win.blit(text, (note_x + 3, note_y-2))
@@ -284,7 +208,7 @@ class Cube:
             win.blit(text, (x + (gap/2 - text.get_width()/2), y + (gap/2 - text.get_height()/2)))
         
         if self.selected:
-            pygame.draw.rect(win, (255,0,0), (x,y, gap ,gap), 3)
+            pygame.draw.rect(win,highlightcolor, (x,y, gap ,gap), 3)
 
     def draw_change(self, win, g=True):
         fnt = pygame.font.SysFont("comicsans", 40)
@@ -359,9 +283,19 @@ def redraw_window(win, board, time, strikes,notes,key):
         text=fnt.render("ON",1,tupletextcolor)
         win.blit(text,(620,560))
     # Draw Strikes
-    text = fnt.render("X " * strikes, 1, (255, 0, 0))
+    text = fnt.render("X " * strikes, 1, highlightcolor)
     win.blit(text, (380, 560))
     # Draw grid and board
+    for i in range(1,10):
+        if board.checkForKey(i):
+            if i==key:
+                temp=highlightcolor
+            else:
+                temp=tupletextcolor
+        else:
+            temp=bgcolor
+        numstext=fnt.render(str(i),1,temp)
+        win.blit(numstext,(350+i*50,630))
     board.draw(key)
 
 
@@ -370,7 +304,7 @@ def format_time(secs):
     minute = secs//60
     hour = minute//60
 
-    mat = " " + str(minute) + ":" + str(sec)
+    mat = " " + (str(minute) if minute >= 10 else ('0' + str(minute))) + ":" + (str(sec) if sec >= 10 else ('0' + str(sec)))
     return mat
 
 def is_valid(board, row, col, num):
@@ -404,6 +338,18 @@ def has_unique_solution(board):
     solve_sudoku(board, solutions)
     return solutions[0] == 1
 
+# def get_board_by_difficulty(difficulty):
+#     url = "https://sudoku-api.vercel.app/api/dosuku?query={newboard(limit:20){grids{value,difficulty}}}"
+
+#     while True:
+#         response = requests.get(url)
+#         data = response.json()
+#         grids = data["newboard"]["grids"]
+
+#         for grid in grids:
+#             if grid["difficulty"].lower() == difficulty.lower():
+#                 return grid["value"]
+
 def sudoku(difficulty,initialBoard=None, initialNotes=None):
     win = pygame.display.set_mode((1280, 720))
     pygame.display.set_caption(difficulty + " Sudoku")
@@ -420,13 +366,21 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
         elif difficulty == 'Medium':
             K=40
         elif difficulty == 'Hard':
-            K=47
+            K=50
+        win.fill(bgcolor)
+        gen = pygame.font.SysFont("comicsans", 80).render("GENERATING SUDOKU", 1, tupletextcolor)
+        win.blit(gen, gen.get_rect(center=(640, 100)))
         while True:
             boardObj = Sudoku(9,K)
             boardObj.fillValues()
             if has_unique_solution(boardObj.mat[:]):
                 break
         board = Grid(9, 9, 540, 540, win,boardObj.mat[:])
+        # tmp_board = get_board_by_difficulty(difficulty)
+        # board = Grid(9, 9, 540, 540, win, tmp_board)
+    
+        
+
     key = None
     start = time.time()
     strikes = 0
@@ -446,9 +400,12 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
                 dumpDict['notes']=notesList
                 dumpDict['difficulty']=difficulty
                 colors={}
-                colors["bgc"]=bgcolor
-                colors["tc"]=textcolor
-                colors["ttc"]=tupletextcolor
+                colors["bg_color"]=bgcolor
+                colors["text_color"]=textcolor
+                colors["border_color"]=bordercolor
+                colors["tuple_text_color"]=tupletextcolor
+                colors["highlight_color"]=highlightcolor
+                colors["hover_color"]=hovering_color
                 with open("last_board.json", "w") as file:   
                     json.dump(dumpDict,file)
                 with open("color_scheme.json","w") as cfile:
@@ -534,6 +491,38 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
                         else:
                             print("Wrong")
                             strikes += 1
+                            if strikes >= 3:
+                                with open("last_board.json" ,"w") as file:
+                                    pass
+                                win.fill(bgcolor)
+                                congrats = pygame.font.SysFont("comicsans", 80).render("You Lost :(", 1, (128,128,128))
+                                win.blit(congrats, congrats.get_rect(center=(640, 100)))
+                                pygame.display.update()
+                                while True:
+                                    pos = pygame.mouse.get_pos()
+                                    PLAY_BACK = Button(image=None, pos=(640, 550), text_input="BACK", font=pygame.font.SysFont("comicsans", 85), base_color=textcolor, hovering_color=hovering_color)
+                                    PLAY_BACK.changecolor(pos)
+                                    PLAY_BACK.update(SCREEN)
+                                    for ev in pygame.event.get():
+                                        if ev.type == pygame.QUIT:
+                                            dumpDict={}
+                                            colors={}
+                                            colors["bg_color"]=bgcolor
+                                            colors["text_color"]=textcolor
+                                            colors["border_color"]=bordercolor
+                                            colors["tuple_text_color"]=tupletextcolor
+                                            colors["highlight_color"]=highlightcolor
+                                            colors["hover_color"]=hovering_color
+                                            with open("last_board.json","w") as file:
+                                                json.dump(dumpDict,file)
+                                            with open("color_scheme.json","w") as cfile:
+                                                json.dump(colors,cfile)
+                                            pygame.quit()
+                                            sys.exit()
+                                        if ev.type == pygame.MOUSEBUTTONDOWN:
+                                            if PLAY_BACK.checkforinput(pos):
+                                                main_menu()
+                                    pygame.display.update()
                     else:
                         board.cubes[i][j].set_notes(key)
             if key:
@@ -547,16 +536,19 @@ def sudoku(difficulty,initialBoard=None, initialNotes=None):
             pygame.display.update()
             while True:
                 pos = pygame.mouse.get_pos()
-                PLAY_BACK = Button(image=None, pos=(640, 550), text_input="BACK", font=pygame.font.SysFont("comicsans", 85), base_color=textcolor, hovering_color="Green")
+                PLAY_BACK = Button(image=None, pos=(640, 550), text_input="BACK", font=pygame.font.SysFont("comicsans", 85), base_color=textcolor, hovering_color=hovering_color)
                 PLAY_BACK.changecolor(pos)
                 PLAY_BACK.update(SCREEN)
                 for ev in pygame.event.get():
                     if ev.type == pygame.QUIT:
                         dumpDict={}
                         colors={}
-                        colors["bgc"]=bgcolor
-                        colors["tc"]=textcolor
-                        colors["ttc"]=tupletextcolor
+                        colors["bg_color"]=bgcolor
+                        colors["text_color"]=textcolor
+                        colors["border_color"]=bordercolor
+                        colors["tuple_text_color"]=tupletextcolor
+                        colors["highlight_color"]=highlightcolor
+                        colors["hover_color"]=hovering_color
                         with open("last_board.json","w") as file:
                             json.dump(dumpDict,file)
                         with open("color_scheme.json","w") as cfile:
@@ -576,23 +568,26 @@ def play():
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
         DIF_TEXT = pygame.font.SysFont("comicsans", 90).render("SELECT DIFICULTY", True, textcolor)
         DIF_RECT = DIF_TEXT.get_rect(center=(640, 100))
-        EASY_BUTTON = Button(image=None, pos=(640, 250), text_input="EASY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
-        MEDIUM_BUTTON = Button(image=None, pos=(640, 400), text_input="MEDIUM", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
-        HARD_BUTTON = Button(image=None, pos=(640, 550), text_input="HARD", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        EASY_BUTTON = Button(image=None, pos=(640, 250), text_input="EASY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
+        MEDIUM_BUTTON = Button(image=None, pos=(640, 400), text_input="MEDIUM", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
+        HARD_BUTTON = Button(image=None, pos=(640, 550), text_input="HARD", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
         SCREEN.blit(DIF_TEXT, DIF_RECT)
         for button in [EASY_BUTTON, MEDIUM_BUTTON, HARD_BUTTON]:
             button.changecolor(PLAY_MOUSE_POS)
             button.update(SCREEN)
-        PLAY_BACK = Button(image=None, pos=(640, 680), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color="Green")
+        PLAY_BACK = Button(image=None, pos=(640, 680), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
         PLAY_BACK.changecolor(PLAY_MOUSE_POS)
         PLAY_BACK.update(SCREEN)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 dumpDict={}
                 colors={}
-                colors["bgc"]=bgcolor
-                colors["tc"]=textcolor
-                colors["ttc"]=tupletextcolor
+                colors["bg_color"]=bgcolor
+                colors["text_color"]=textcolor
+                colors["border_color"]=bordercolor
+                colors["tuple_text_color"]=tupletextcolor
+                colors["highlight_color"]=highlightcolor
+                colors["hover_color"]=hovering_color
                 with open("last_board.json","w") as file:
                     json.dump(dumpDict,file)
                 with open("color_scheme.json","w") as cfile:
@@ -611,34 +606,49 @@ def play():
         pygame.display.update()
 def options():
     global bgcolor
+    global bordercolor
     global textcolor
     global tupletextcolor
+    global highlightcolor
+    global hovering_color
     SCREEN.fill(bgcolor)
     pygame.display.flip()
     tempbg=bgcolor
+    tempborder=bordercolor
     tempttc=tupletextcolor
     temptc=textcolor
+    temphighlight = highlightcolor
+    temphover=hovering_color
     while True:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
         
-        lightmode=Button(image=None, pos=(640, 200), text_input='Light mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temptc)
-        darkmode=Button(image=None, pos=(640, 300), text_input='Dark mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temptc)#444444 #E2E2E2
-        beigemode=Button(image=None, pos=(640, 400), text_input='Beige mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temptc)#FFCF9F #7B5E41
+        lightmode=Button(image=None, pos=(640, 200), text_input='Light mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temphover)
+        darkmode=Button(image=None, pos=(640, 300), text_input='Dark mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temphover)
+        beigemode=Button(image=None, pos=(640, 400), text_input='Beige mode', font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=temphover)
         
         if lightmode.checkforinput(OPTIONS_MOUSE_POS):
             tempbg=(255,255,255)
+            tempborder=(0,0,0)
             tempttc=(0,0,0)
             temptc='#000000'
+            temphighlight = (255, 0, 0)
+            temphover="#555555"
             SCREEN.fill(tempbg)
         if darkmode.checkforinput(OPTIONS_MOUSE_POS):
-            tempbg=(44,44,44)
-            tempttc=(226,226,226)
-            temptc='#E2E2E2'
+            tempbg=(30, 30, 30)
+            tempborder=(68, 68, 68)
+            tempttc=(230, 230, 230)
+            temptc='#E6E6E6'
+            temphighlight = (255, 107, 107)
+            temphover = "#3B2C2C"
             SCREEN.fill(tempbg)
         if beigemode.checkforinput(OPTIONS_MOUSE_POS):
-            tempbg=(255,207,159)
-            tempttc=(33,20,9)
-            temptc='#211409'
+            tempbg=(245, 235, 221)
+            tempborder=(165, 145, 123)
+            tempttc=(62, 55, 46)
+            temptc='#3E372E'
+            temphighlight = (140, 64, 59)
+            temphover = "#7A6F62"
             SCREEN.fill(tempbg)
         if not (lightmode.checkforinput(OPTIONS_MOUSE_POS) or darkmode.checkforinput(OPTIONS_MOUSE_POS) or beigemode.checkforinput(OPTIONS_MOUSE_POS)):
             tempbg=bgcolor
@@ -651,7 +661,7 @@ def options():
             option.changecolor(OPTIONS_MOUSE_POS)
             option.update(SCREEN)
 
-        OPTIONS_BACK = Button(image=None, pos=(640, 540), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color="Green")
+        OPTIONS_BACK = Button(image=None, pos=(640, 540), text_input="BACK", font=pygame.font.SysFont("comicsans", 75), base_color=temptc, hovering_color=hovering_color)
 
         OPTIONS_BACK.changecolor(OPTIONS_MOUSE_POS)
         OPTIONS_BACK.update(SCREEN)
@@ -660,9 +670,12 @@ def options():
             if event.type == pygame.QUIT:
                 dumpDict={}
                 colors={}
-                colors["bgc"]=bgcolor
-                colors["tc"]=textcolor
-                colors["ttc"]=tupletextcolor
+                colors["bg_color"]=bgcolor
+                colors["text_color"]=textcolor
+                colors["border_color"]=bordercolor
+                colors["tuple_text_color"]=tupletextcolor
+                colors["highlight_color"]=highlightcolor
+                colors["hover_color"]=hovering_color
                 with open("last_board.json","w") as file:
                     json.dump(dumpDict,file)
                 with open("color_scheme.json","w") as cfile:
@@ -672,21 +685,12 @@ def options():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if OPTIONS_BACK.checkforinput(OPTIONS_MOUSE_POS):
                     main_menu()
-                if lightmode.checkforinput(OPTIONS_MOUSE_POS):
-                    bgcolor=(255,255,255)
-                    tupletextcolor=(0,0,0)
-                    textcolor='#000000'
-                    SCREEN.fill(bgcolor)
-                if darkmode.checkforinput(OPTIONS_MOUSE_POS):
-                    bgcolor=(44,44,44)
-                    tupletextcolor=(226,226,226)
-                    textcolor='#E2E2E2'
-                    SCREEN.fill(bgcolor)
-                if beigemode.checkforinput(OPTIONS_MOUSE_POS):
-                    bgcolor=(255,207,159)
-                    tupletextcolor=(33,20,9)
-                    textcolor='#211409'
-                    SCREEN.fill(bgcolor)
+                elif (lightmode.checkforinput(OPTIONS_MOUSE_POS) or darkmode.checkforinput(OPTIONS_MOUSE_POS) or beigemode.checkforinput(OPTIONS_MOUSE_POS)):
+                    bgcolor=tempbg
+                    bordercolor=tempborder
+                    tupletextcolor=tempttc
+                    textcolor=temptc
+                    highlightcolor = temphighlight
                 pygame.display.flip()
 
         pygame.display.update()
@@ -694,19 +698,20 @@ def main_menu():
     global textcolor
     global bgcolor
     global tupletextcolor
+    global highlightcolor
     pygame.display.set_caption("Menu")
     SCREEN.fill(bgcolor)
     pygame.display.flip()
     continue_button = None
     if os.path.exists("last_board.json") and os.path.getsize("last_board.json") > 2:
-        continue_button = Button(image=None, pos=(640, 150), text_input="CONTINUE", font=pygame.font.SysFont("comicsans", 65), base_color='#bed4eb', hovering_color=textcolor)
+        continue_button = Button(image=None, pos=(640, 150), text_input="CONTINUE", font=pygame.font.SysFont("comicsans", 65), base_color=textcolor, hovering_color=hovering_color)
     while True:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
         MENU_TEXT = pygame.font.SysFont("comicsans", 100).render("SUDOKU", True,textcolor)
         MENU_RECT = MENU_TEXT.get_rect(center=(640, 50))
-        PLAY_BUTTON = Button(image=None, pos=(640, 250), text_input="PLAY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
-        OPTIONS_BUTTON = Button(image=None, pos=(640, 400), text_input="OPTIONS", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
-        QUIT_BUTTON = Button(image=None, pos=(640, 550), text_input="QUIT", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=textcolor)
+        PLAY_BUTTON = Button(image=None, pos=(640, 250), text_input="PLAY", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
+        OPTIONS_BUTTON = Button(image=None, pos=(640, 400), text_input="OPTIONS", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
+        QUIT_BUTTON = Button(image=None, pos=(640, 550), text_input="QUIT", font=pygame.font.SysFont("comicsans", 75), base_color=textcolor, hovering_color=hovering_color)
         SCREEN.blit(MENU_TEXT, MENU_RECT)
         if continue_button:
             continue_button.changecolor(MENU_MOUSE_POS)
@@ -718,9 +723,12 @@ def main_menu():
             if event.type == pygame.QUIT:
                 dumpDict={}
                 colors={}
-                colors["bgc"]=bgcolor
-                colors["tc"]=textcolor
-                colors["ttc"]=tupletextcolor
+                colors["bg_color"]=bgcolor
+                colors["text_color"]=textcolor
+                colors["border_color"]=bordercolor
+                colors["tuple_text_color"]=tupletextcolor
+                colors["highlight_color"]=highlightcolor
+                colors["hover_color"]=hovering_color
                 with open("last_board.json","w") as file:
                     json.dump(dumpDict,file)
                 with open("color_scheme.json","w") as cfile:
@@ -742,9 +750,12 @@ def main_menu():
                 if QUIT_BUTTON.checkforinput(MENU_MOUSE_POS):
                     dumpDict={}
                     colors={}
-                    colors["bgc"]=bgcolor
-                    colors["tc"]=textcolor
-                    colors["ttc"]=tupletextcolor
+                    colors["bg_color"]=bgcolor
+                    colors["text_color"]=textcolor
+                    colors["border_color"]=bordercolor
+                    colors["tuple_text_color"]=tupletextcolor
+                    colors["highlight_color"]=highlightcolor
+                    colors["hover_color"]=hovering_color
                     with open("last_board.json","w") as file:
                         json.dump(dumpDict,file)
                     with open("color_scheme.json","w") as cfile:
